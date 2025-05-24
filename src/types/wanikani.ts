@@ -7,6 +7,117 @@ export interface WaniKaniUser {
 }
 
 /**
+ * API response wrapper types
+ */
+export interface WaniKaniCollection<T> {
+  object: 'collection';
+  url: string;
+  pages: {
+    next_url: string | null;
+    previous_url: string | null;
+    per_page: number;
+  };
+  total_count: number;
+  data_updated_at: string | null;
+  data: T[];
+}
+
+export interface WaniKaniResource<T> {
+  id: number;
+  object: string;
+  url: string;
+  data_updated_at: string;
+  data: T;
+}
+
+/**
+ * API-specific data structures
+ */
+export interface AssignmentData {
+  available_at: string | null;
+  burned_at: string | null;
+  created_at: string;
+  hidden: boolean;
+  passed_at: string | null;
+  resurrected_at: string | null;
+  srs_stage: number;
+  started_at: string | null;
+  subject_id: number;
+  subject_type: 'radical' | 'kanji' | 'vocabulary' | 'kana_vocabulary';
+  unlocked_at: string | null;
+}
+
+export interface SubjectData {
+  auxiliary_meanings: Array<{
+    meaning: string;
+    type: 'whitelist' | 'blacklist';
+  }>;
+  characters: string | null;
+  created_at: string;
+  document_url: string;
+  hidden_at: string | null;
+  lesson_position: number;
+  level: number;
+  meaning_mnemonic: string;
+  meanings: Array<{
+    meaning: string;
+    primary: boolean;
+    accepted_answer: boolean;
+  }>;
+  slug: string;
+  spaced_repetition_system_id: number;
+}
+
+export interface ReviewData {
+  assignment_id: number;
+  created_at: string;
+  ending_srs_stage: number;
+  incorrect_meaning_answers: number;
+  incorrect_reading_answers: number;
+  spaced_repetition_system_id: number;
+  starting_srs_stage: number;
+  subject_id: number;
+}
+
+/**
+ * Pagination control interface
+ */
+export interface PaginationOptions {
+  page_after_id?: number;
+  page_before_id?: number;
+}
+
+/**
+ * Filter interfaces for different endpoints
+ */
+export interface AssignmentFilters extends PaginationOptions {
+  available_after?: string;
+  available_before?: string;
+  burned?: boolean;
+  hidden?: boolean;
+  ids?: number[];
+  immediately_available_for_lessons?: boolean;
+  immediately_available_for_review?: boolean;
+  in_review?: boolean;
+  levels?: number[];
+  srs_stages?: number[];
+  started?: boolean;
+  subject_ids?: number[];
+  subject_types?: string[];
+  unlocked?: boolean;
+  updated_after?: string;
+}
+
+export interface SubjectFilters extends PaginationOptions {
+  ids?: number[];
+  types?: string[];
+  slugs?: string[];
+  levels?: number[];
+  hidden?: boolean;
+  updated_after?: string;
+}
+
+/**
  * Represents a single review item with complete metadata and user interaction data.
  * Compatible with WaniKani API /subjects and /assignments endpoints.
  */

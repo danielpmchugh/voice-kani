@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
-import { fetchReviewItems, submitReviewResult } from '../services/wanikani/api';
+import { 
+  fetchReviewItemsForSession, 
+  fetchAssignments, 
+  fetchSummary,
+  submitReviewResult,
+  WaniKaniError 
+} from '../services/wanikani/api';
 import { ReviewItem } from '../types/wanikani';
 import { useReviewSessionStore } from '../stores/reviewSessionStore';
 
@@ -20,12 +26,15 @@ export const useWaniKani = () => {
   const loadReviewItems = async () => {
     setLocalLoading(true);
     setLocalError(null);
-
+    
     try {
-      const data = await fetchReviewItems();
-      setReviewItems(data.items || []);
+      const items = await fetchReviewItemsForSession();
+      setReviewItems(items);
     } catch (err) {
-      setLocalError('Failed to load review items');
+      const errorMessage = err instanceof WaniKaniError 
+        ? `WaniKani API Error: ${err.message}` 
+        : 'Failed to load review items';
+      setLocalError(errorMessage);
       console.error(err);
     } finally {
       setLocalLoading(false);
@@ -33,7 +42,12 @@ export const useWaniKani = () => {
   };
 
   const startReviewSession = async (userId = 'default-user') => {
-    return await startSession(userId, reviewItems);
+    try {
+      return await startSession(userId, reviewItems);
+    } catch (err) {
+      console.error('Failed to start review session:', err);
+      throw err;
+    }
   };
 
   const submitAnswer = async (itemId: string, isCorrect: boolean, questionType: 'meaning' | 'reading' = 'meaning') => {
@@ -56,6 +70,23 @@ export const useWaniKani = () => {
     }
   };
 
+  const getSummary = async () => {
+    setLocalLoading(true);
+    setLocalError(null);
+
+    try {
+      return await fetchSummary();
+    } catch (err) {
+      const errorMessage = err instanceof WaniKaniError 
+        ? `WaniKani API Error: ${err.message}` 
+        : 'Failed to load summary';
+      setLocalError(errorMessage);
+      throw err;
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadReviewItems();
   }, []);
@@ -68,5 +99,6 @@ export const useWaniKani = () => {
     loadReviewItems,
     startSession: startReviewSession,
     submitAnswer,
+    getSummary
   };
 };
