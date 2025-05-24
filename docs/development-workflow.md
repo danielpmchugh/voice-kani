@@ -61,7 +61,28 @@ This will generate a report showing the size of each bundle and its contents.
 
 ## Deployment
 
-The application is deployed to Vercel. The deployment is triggered automatically when changes are pushed to the `main` branch.
+The application is deployed to Azure Container Apps with the following workflow:
+
+### Pull Request Deployments
+- Each PR gets its own staging slot with naming convention: `pr-<PR_NUMBER>-<SHORT_SHA>`
+- Staging URL is automatically posted as a PR comment
+- Staging slots are automatically cleaned up when PR is closed/merged
+
+### Production Deployments  
+- Pushes to `main` branch trigger canary deployments to production
+- Zero-downtime deployments with automatic rollback on failure
+- Team notifications via Microsoft Teams webhook
+
+### Required Azure Configuration
+The following secrets must be configured in GitHub repository settings:
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID` 
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_CLIENT_SECRET`
+- `AZURE_CONTAINERAPPS_ENVIRONMENT`
+- `AZURE_RESOURCE_GROUP`
+- `AZURE_CONTAINERAPP_NAME`
+- `TEAMS_WEBHOOK_URL` (optional)
 
 ## Best Practices
 

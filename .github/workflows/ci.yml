@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_CONTAINERAPP_NAME: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
+  AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ secrets.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+
 jobs:
   lint:
     name: Lint
@@ -35,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run tests
-        run: npm run test
+        run: npm run test:ci
       - name: Upload coverage reports
         uses: actions/upload-artifact@v3
         with:
@@ -54,7 +59,7 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Build
+      - name: Build application
         run: npm run build
       - name: Analyze bundle
         run: npm run analyze
@@ -63,3 +68,214 @@ jobs:
         with:
           name: build-output
           path: .next/
+
+  deploy-staging:
+    name: Deploy to Staging (PR)
+    if: github.event_name == 'pull_request'
+    needs: [lint, test, build]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Set staging slot name
+        id: slot-name
+        run: |
+          SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
+          SLOT_NAME="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
+          echo "slot_name=${SLOT_NAME}" >> $GITHUB_OUTPUT
+          echo "Staging slot name: ${SLOT_NAME}"
+
+      - name: Deploy to Azure Container Apps (Staging)
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          containerAppName: ${{ env.AZURE_CONTAINERAPP_NAME }}
+          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
+          imageToDeploy: 'nginx:latest' # This would be replaced with actual container image
+          containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          revisionSuffix: ${{ steps.slot-name.outputs.slot_name }}
+
+      - name: Get staging URL
+        id: staging-url
+        run: |
+          STAGING_URL="https://${{ steps.slot-name.outputs.slot_name }}.${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}.azurecontainerapps.io"
+          echo "staging_url=${STAGING_URL}" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with staging URL
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 **Staging deployment ready!**\n\n' +
+                    '📍 **Staging URL:** ${{ steps.staging-url.outputs.staging_url }}\n' +
+                    '🏷️ **Slot Name:** `${{ steps.slot-name.outputs.slot_name }}`\n\n' +
+                    'Test your changes and provide feedback!'
+            })
+
+      - name: Notify Teams
+        if: env.TEAMS_WEBHOOK_URL != ''
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" -d '{
+            "type": "message",
+            "attachments": [{
+              "contentType": "application/vnd.microsoft.card.adaptive",
+              "content": {
+                "type": "AdaptiveCard",
+                "body": [{
+                  "type": "TextBlock",
+                  "size": "Medium",
+                  "weight": "Bolder",
+                  "text": "🚀 Staging Deployment"
+                }, {
+                  "type": "FactSet",
+                  "facts": [{
+                    "title": "Environment:",
+                    "value": "Staging"
+                  }, {
+                    "title": "PR:",
+                    "value": "#${{ github.event.pull_request.number }}"
+                  }, {
+                    "title": "Slot:",
+                    "value": "${{ steps.slot-name.outputs.slot_name }}"
+                  }, {
+                    "title": "URL:",
+                    "value": "${{ steps.staging-url.outputs.staging_url }}"
+                  }]
+                }],
+                "actions": [{
+                  "type": "Action.OpenUrl",
+                  "title": "View Staging",
+                  "url": "${{ steps.staging-url.outputs.staging_url }}"
+                }, {
+                  "type": "Action.OpenUrl", 
+                  "title": "View PR",
+                  "url": "${{ github.event.pull_request.html_url }}"
+                }]
+              }
+            }]
+          }' $TEAMS_WEBHOOK_URL
+
+  deploy-production:
+    name: Deploy to Production (Canary)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint, test, build]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Set canary revision suffix
+        id: revision
+        run: |
+          REVISION_SUFFIX="canary-$(date +%s)"
+          echo "revision_suffix=${REVISION_SUFFIX}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Azure Container Apps (Production)
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          containerAppName: ${{ env.AZURE_CONTAINERAPP_NAME }}
+          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
+          imageToDeploy: 'nginx:latest' # This would be replaced with actual container image  
+          containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          revisionSuffix: ${{ steps.revision.outputs.revision_suffix }}
+
+      - name: Notify Teams
+        if: env.TEAMS_WEBHOOK_URL != ''
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" -d '{
+            "type": "message", 
+            "attachments": [{
+              "contentType": "application/vnd.microsoft.card.adaptive",
+              "content": {
+                "type": "AdaptiveCard",
+                "body": [{
+                  "type": "TextBlock",
+                  "size": "Medium", 
+                  "weight": "Bolder",
+                  "text": "🎉 Production Deployment"
+                }, {
+                  "type": "FactSet",
+                  "facts": [{
+                    "title": "Environment:",
+                    "value": "Production"
+                  }, {
+                    "title": "Type:",
+                    "value": "Canary Deployment"
+                  }, {
+                    "title": "Revision:",
+                    "value": "${{ steps.revision.outputs.revision_suffix }}"
+                  }, {
+                    "title": "Commit:",
+                    "value": "${{ github.sha }}"
+                  }]
+                }],
+                "actions": [{
+                  "type": "Action.OpenUrl",
+                  "title": "View Production",
+                  "url": "https://${{ env.AZURE_CONTAINERAPP_NAME }}.${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}.azurecontainerapps.io"
+                }]
+              }
+            }]
+          }' $TEAMS_WEBHOOK_URL
+
+  cleanup-staging:
+    name: Cleanup Staging Slots
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Delete staging revision
+        run: |
+          SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
+          REVISION_NAME="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
+          echo "Deleting revision: ${REVISION_NAME}"
+          
+          az containerapp revision deactivate \
+            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --revision "${REVISION_NAME}" || true
