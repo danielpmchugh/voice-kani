@@ -1,6 +1,7 @@
 import React from 'react';
 import { ReviewItem } from '@/types/wanikani';
 import Button from '@/components/common/Button';
+import { useReviewSessionStore } from '@/stores/reviewSessionStore';
 
 interface ReviewCardProps {
   item: ReviewItem;
@@ -10,14 +11,16 @@ interface ReviewCardProps {
 const ReviewCard: React.FC<ReviewCardProps> = ({ item, onAnswer }) => {
   const [answer, setAnswer] = React.useState('');
   const [isRecording, setIsRecording] = React.useState(false);
+  useReviewSessionStore();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const isCorrect =
-      item.meanings.some(meaning => meaning.toLowerCase() === answer.toLowerCase()) ||
+    const isCorrect = !!(
+      item.meanings.some((meaning: string) => meaning.toLowerCase() === answer.toLowerCase()) ||
       (item.readings &&
-        item.readings.some(reading => reading.toLowerCase() === answer.toLowerCase()));
+        item.readings.some((reading: string) => reading.toLowerCase() === answer.toLowerCase()))
+    );
 
     onAnswer(isCorrect);
     setAnswer('');
