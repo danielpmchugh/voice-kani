@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ReviewSession, ReviewItem } from '../types/wanikani';
+import { ReviewSession, ReviewItem, VoiceInputConfig } from '../types/wanikani';
 import { reviewDataService } from '../services/reviewData';
 
 interface ReviewSessionState {
@@ -9,12 +9,28 @@ interface ReviewSessionState {
   
   startSession: (userId?: string, items?: ReviewItem[]) => Promise<ReviewSession | null>;
   updateSessionItem: (itemId: string, updates: Partial<ReviewItem>) => Promise<void>;
-  submitAnswer: (itemId: string, isCorrect: boolean, questionType?: 'meaning' | 'reading') => Promise<void>;
+  submitAnswer: (
+    itemId: string, 
+    isCorrect: boolean, 
+    questionType?: 'meaning' | 'reading',
+    inputMethod?: 'voice' | 'text',
+    voiceConfidence?: number
+  ) => Promise<void>;
   endSession: () => Promise<void>;
   clearSession: () => void;
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
+  toggleVoiceInput: (enabled: boolean) => Promise<void>;
+  updateVoiceConfig: (config: Partial<VoiceInputConfig>) => Promise<void>;
 }
+
+const defaultVoiceConfig: VoiceInputConfig = {
+  language: 'ja-JP',
+  maxDuration: 10000, // 10 seconds
+  minDuration: 500,   // 0.5 seconds
+  continuous: false,
+  interimResults: true,
+};
 
 export const useReviewSessionStore = create<ReviewSessionState>((set, get) => ({
   currentSession: null,
@@ -39,6 +55,16 @@ export const useReviewSessionStore = create<ReviewSessionState>((set, get) => ({
         currentItemIndex: 0,
         correctCount: 0,
         incorrectCount: 0,
+        settings: {
+          voiceEnabled: true,
+          voiceConfig: defaultVoiceConfig,
+        },
+        voiceStats: {
+          voiceAnswerCount: 0,
+          textAnswerCount: 0,
+          averageConfidence: 0,
+          failureCount: 0,
+        },
       };
 
       const newSession = await reviewDataService.createSession(sessionData);
@@ -75,7 +101,13 @@ export const useReviewSessionStore = create<ReviewSessionState>((set, get) => ({
     }
   },
 
-  submitAnswer: async (itemId: string, isCorrect: boolean, _questionType: 'meaning' | 'reading' = 'meaning') => {
+  submitAnswer: async (
+    itemId: string, 
+    isCorrect: boolean, 
+    questionType: 'meaning' | 'reading' = 'meaning',
+    inputMethod: 'voice' | 'text' = 'text',
+    voiceConfidence?: number
+  ) => {
     const { currentSession } = get();
     if (!currentSession) return;
 
@@ -91,15 +123,35 @@ export const useReviewSessionStore = create<ReviewSessionState>((set, get) => ({
       const itemUpdates: Partial<ReviewItem> = {
         userAnswer: item.expectedAnswer, // In a real app, this would be the user's actual input
         result: isCorrect ? 'correct' : 'incorrect',
-        answeredAt: now
+        answeredAt: now,
+        inputMethod,
+        voiceConfidence: inputMethod === 'voice' ? voiceConfidence : undefined,
       };
       
       await get().updateSessionItem(itemId, itemUpdates);
       
+      const voiceStats = currentSession.voiceStats || {
+        voiceAnswerCount: 0,
+        textAnswerCount: 0,
+        averageConfidence: 0,
+        failureCount: 0,
+      };
+      
+      if (inputMethod === 'voice') {
+        voiceStats.voiceAnswerCount += 1;
+        if (voiceConfidence) {
+          const totalConfidence = voiceStats.averageConfidence * (voiceStats.voiceAnswerCount - 1) + voiceConfidence;
+          voiceStats.averageConfidence = totalConfidence / voiceStats.voiceAnswerCount;
+        }
+      } else {
+        voiceStats.textAnswerCount += 1;
+      }
+      
       const sessionUpdates: Partial<ReviewSession> = {
         currentItemIndex: currentSession.currentItemIndex + 1,
         correctCount: isCorrect ? currentSession.correctCount + 1 : currentSession.correctCount,
-        incorrectCount: isCorrect ? currentSession.incorrectCount : currentSession.incorrectCount + 1
+        incorrectCount: isCorrect ? currentSession.incorrectCount : currentSession.incorrectCount + 1,
+        voiceStats,
       };
       
       const progress = await reviewDataService.getSessionProgress(currentSession.id);
@@ -149,5 +201,44 @@ export const useReviewSessionStore = create<ReviewSessionState>((set, get) => ({
 
   setLoading: (loading: boolean) => {
     set({ loading });
+  },
+  
+  toggleVoiceInput: async (enabled: boolean) => {
+    const { currentSession } = get();
+    if (!currentSession) return;
+    
+    try {
+      const settings = {
+        ...(currentSession.settings || {}),
+        voiceEnabled: enabled,
+      };
+      
+      const updatedSession = await reviewDataService.updateSession(currentSession.id, { settings });
+      set({ currentSession: updatedSession });
+    } catch (err) {
+      set({ error: 'Failed to toggle voice input' });
+      console.error('Error toggling voice input:', err);
+    }
+  },
+  
+  updateVoiceConfig: async (config: Partial<VoiceInputConfig>) => {
+    const { currentSession } = get();
+    if (!currentSession) return;
+    
+    try {
+      const currentConfig = currentSession.settings?.voiceConfig || defaultVoiceConfig;
+      const updatedConfig = { ...currentConfig, ...config };
+      
+      const settings = {
+        ...(currentSession.settings || {}),
+        voiceConfig: updatedConfig,
+      };
+      
+      const updatedSession = await reviewDataService.updateSession(currentSession.id, { settings });
+      set({ currentSession: updatedSession });
+    } catch (err) {
+      set({ error: 'Failed to update voice configuration' });
+      console.error('Error updating voice configuration:', err);
+    }
   },
 }));

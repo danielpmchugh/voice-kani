@@ -7,6 +7,32 @@ export interface WaniKaniUser {
 }
 
 /**
+ * Voice input method used for answering review questions
+ */
+export type VoiceInputMethod = 'webSpeechAPI' | 'none';
+
+/**
+ * Voice input status for tracking recognition state
+ */
+export type VoiceInputStatus = 'idle' | 'recording' | 'processing' | 'error' | 'success';
+
+/**
+ * Voice input configuration and settings
+ */
+export interface VoiceInputConfig {
+  /** The language code for speech recognition */
+  language: string;
+  /** Maximum recording duration in milliseconds */
+  maxDuration: number;
+  /** Minimum recording duration in milliseconds */
+  minDuration: number;
+  /** Whether to use continuous recognition */
+  continuous: boolean;
+  /** Whether to show interim results during recognition */
+  interimResults: boolean;
+}
+
+/**
  * Represents a single review item with complete metadata and user interaction data.
  * Compatible with WaniKani API /subjects and /assignments endpoints.
  */
@@ -39,6 +65,10 @@ export interface ReviewItem {
   auxiliaryMeanings?: string[];
   /** Memory aid for learning */
   mnemonic?: string;
+  /** Method used to input the answer (voice or text) */
+  inputMethod?: 'voice' | 'text';
+  /** Voice recognition confidence score (0-1) if voice input was used */
+  voiceConfidence?: number;
   
   /** @deprecated Use character instead */
   characters?: string;
@@ -76,6 +106,8 @@ export interface ReviewSession {
   settings?: {
     /** Voice input enabled */
     voiceEnabled?: boolean;
+    /** Voice input configuration */
+    voiceConfig?: VoiceInputConfig;
     /** Time limit per item in seconds */
     timeLimit?: number;
     /** Auto-advance to next item */
@@ -83,6 +115,17 @@ export interface ReviewSession {
   };
   /** Source of the review items */
   source: 'wanikani' | 'custom';
+  /** Voice input usage statistics */
+  voiceStats?: {
+    /** Number of answers submitted using voice input */
+    voiceAnswerCount: number;
+    /** Number of answers submitted using text input */
+    textAnswerCount: number;
+    /** Average voice recognition confidence */
+    averageConfidence: number;
+    /** Number of times voice recognition failed */
+    failureCount: number;
+  };
   
   /** @deprecated Use items.length instead */
   currentItemIndex: number;
