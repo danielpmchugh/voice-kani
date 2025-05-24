@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
   fetchReviewItemsForSession, 
-  fetchAssignments, 
   fetchSummary,
   submitReviewResult,
   WaniKaniError 
