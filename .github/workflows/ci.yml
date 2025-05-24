@@ -155,50 +155,72 @@ jobs:
                     'Test your changes and provide feedback!'
             })
 
-      - name: Notify Teams
-        if: env.TEAMS_WEBHOOK_URL != ''
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
         env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -H "Content-Type: application/json" -d '{
-            "type": "message",
-            "attachments": [{
-              "contentType": "application/vnd.microsoft.card.adaptive",
-              "content": {
-                "type": "AdaptiveCard",
-                "body": [{
-                  "type": "TextBlock",
-                  "size": "Medium",
-                  "weight": "Bolder",
-                  "text": "🚀 Staging Deployment"
-                }, {
-                  "type": "FactSet",
-                  "facts": [{
-                    "title": "Environment:",
-                    "value": "Staging"
-                  }, {
-                    "title": "PR:",
-                    "value": "#${{ github.event.pull_request.number }}"
-                  }, {
-                    "title": "Slot:",
-                    "value": "${{ steps.slot-name.outputs.slot_name }}"
-                  }, {
-                    "title": "URL:",
-                    "value": "${{ steps.staging-url.outputs.staging_url }}"
-                  }]
-                }],
-                "actions": [{
-                  "type": "Action.OpenUrl",
-                  "title": "View Staging",
-                  "url": "${{ steps.staging-url.outputs.staging_url }}"
-                }, {
-                  "type": "Action.OpenUrl", 
-                  "title": "View PR",
-                  "url": "${{ github.event.pull_request.html_url }}"
-                }]
+          curl -X POST -H "Content-Type: application/json" -d '{
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🚀 Staging Deployment",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Environment:*\nStaging"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*PR:*\n#${{ github.event.pull_request.number }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Slot:*\n${{ steps.slot-name.outputs.slot_name }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*URL:*\n${{ steps.staging-url.outputs.staging_url }}"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Staging",
+                      "emoji": true
+                    },
+                    "url": "${{ steps.staging-url.outputs.staging_url }}"
+                  },
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View PR",
+                      "emoji": true
+                    },
+                    "url": "${{ github.event.pull_request.html_url }}"
+                  }
+                ]
               }
-            }]
-          }' $TEAMS_WEBHOOK_URL
+            ]
+          }' $SLACK_WEBHOOK_URL
 
   deploy-production:
     name: Deploy to Production (Canary)
@@ -264,46 +286,63 @@ jobs:
           containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
           revisionSuffix: ${{ steps.revision.outputs.revision_suffix }}
 
-      - name: Notify Teams
-        if: env.TEAMS_WEBHOOK_URL != ''
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
         env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -H "Content-Type: application/json" -d '{
-            "type": "message", 
-            "attachments": [{
-              "contentType": "application/vnd.microsoft.card.adaptive",
-              "content": {
-                "type": "AdaptiveCard",
-                "body": [{
-                  "type": "TextBlock",
-                  "size": "Medium", 
-                  "weight": "Bolder",
-                  "text": "🎉 Production Deployment"
-                }, {
-                  "type": "FactSet",
-                  "facts": [{
-                    "title": "Environment:",
-                    "value": "Production"
-                  }, {
-                    "title": "Type:",
-                    "value": "Canary Deployment"
-                  }, {
-                    "title": "Revision:",
-                    "value": "${{ steps.revision.outputs.revision_suffix }}"
-                  }, {
-                    "title": "Commit:",
-                    "value": "${{ github.sha }}"
-                  }]
-                }],
-                "actions": [{
-                  "type": "Action.OpenUrl",
-                  "title": "View Production",
-                  "url": "https://${{ env.AZURE_CONTAINERAPP_NAME }}.${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}.azurecontainerapps.io"
-                }]
+          curl -X POST -H "Content-Type: application/json" -d '{
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🎉 Production Deployment",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Environment:*\nProduction"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Type:*\nCanary Deployment"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Revision:*\n${{ steps.revision.outputs.revision_suffix }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Commit:*\n${{ github.sha }}"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Production",
+                      "emoji": true
+                    },
+                    "url": "https://${{ env.AZURE_CONTAINERAPP_NAME }}.${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}.azurecontainerapps.io"
+                  }
+                ]
               }
-            }]
-          }' $TEAMS_WEBHOOK_URL
+            ]
+          }' $SLACK_WEBHOOK_URL
 
   cleanup-staging:
     name: Cleanup Staging Slots

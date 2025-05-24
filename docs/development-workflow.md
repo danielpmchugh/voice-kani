@@ -71,7 +71,7 @@ The application is deployed to Azure Container Apps with the following workflow:
 ### Production Deployments  
 - Pushes to `main` branch trigger canary deployments to production
 - Zero-downtime deployments with automatic rollback on failure
-- Team notifications via Microsoft Teams webhook
+- Slack notifications for deployment events
 
 ### Required Azure Configuration
 The following secrets must be configured in GitHub repository settings:
@@ -85,7 +85,7 @@ The following secrets must be configured in GitHub repository settings:
 - `AZURE_CONTAINER_REGISTRY` - Name of your Azure Container Registry
 - `AZURE_CONTAINER_REGISTRY_USERNAME` - Username for ACR authentication
 - `AZURE_CONTAINER_REGISTRY_PASSWORD` - Password for ACR authentication
-- `TEAMS_WEBHOOK_URL` (optional)
+- `SLACK_WEBHOOK_URL` (optional) - Webhook URL for Slack notifications
 
 ## Best Practices
 
