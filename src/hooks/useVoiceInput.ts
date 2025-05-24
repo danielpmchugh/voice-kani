@@ -36,10 +36,16 @@ interface SpeechRecognition extends EventTarget {
   abort: () => void;
 }
 
-const SpeechRecognitionAPI = 
-  (window as any).SpeechRecognition || 
-  (window as any).webkitSpeechRecognition || 
-  null;
+declare global {
+  interface Window {
+    SpeechRecognition?: {
+      new (): SpeechRecognition;
+    };
+    webkitSpeechRecognition?: {
+      new (): SpeechRecognition;
+    };
+  }
+}
 
 interface UseVoiceInputOptions {
   language?: string;
@@ -75,22 +81,28 @@ export const useVoiceInput = ({
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
-  
-  const isSupported = SpeechRecognitionAPI !== null;
+
+  const getSpeechRecognition = () => {
+    if (typeof window === 'undefined') return null;
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  };
+
+  const SpeechRecognitionAPI = getSpeechRecognition();
+  const isSupported = !!SpeechRecognitionAPI;
 
   const cleanupRecognition = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.onresult = null;
-      recognitionRef.current.onend = null;
-      recognitionRef.current.onerror = null;
-      recognitionRef.current.onstart = null;
+      recognitionRef.current.onresult = () => {};
+      recognitionRef.current.onend = () => {};
+      recognitionRef.current.onerror = () => {};
+      recognitionRef.current.onstart = () => {};
       recognitionRef.current = null;
     }
-    
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -102,27 +114,27 @@ export const useVoiceInput = ({
   }, []);
 
   const startRecording = useCallback(() => {
-    if (!isSupported) {
+    if (!isSupported || !SpeechRecognitionAPI) {
       setError('Speech recognition is not supported in this browser');
       return;
     }
 
     cleanupRecognition();
-    
+
     try {
-      const recognition = new SpeechRecognitionAPI() as SpeechRecognition;
-      
+      const recognition = new SpeechRecognitionAPI();
+
       recognition.continuous = continuous;
       recognition.interimResults = interimResults;
       recognition.lang = language;
       recognition.maxAlternatives = 1;
-      
+
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const result = event.results[event.resultIndex];
         const transcriptValue = result[0].transcript;
-        
+
         setTranscript(transcriptValue);
-        
+
         if (result.isFinal) {
           setIsProcessing(true);
           setTimeout(() => {
@@ -130,18 +142,18 @@ export const useVoiceInput = ({
           }, 500);
         }
       };
-      
+
       recognition.onend = () => {
         const duration = Date.now() - startTimeRef.current;
-        
+
         if (duration < minDuration) {
           setError('Recording too short. Please speak longer.');
         }
-        
+
         setIsRecording(false);
         cleanupRecognition();
       };
-      
+
       recognition.onerror = (event: Event & { error: string }) => {
         switch (event.error) {
           case 'no-speech':
@@ -164,33 +176,41 @@ export const useVoiceInput = ({
           default:
             setError(`Error: ${event.error}`);
         }
-        
+
         setIsRecording(false);
         cleanupRecognition();
       };
-      
+
       recognition.onstart = () => {
         setIsRecording(true);
         setError(null);
         startTimeRef.current = Date.now();
       };
-      
+
       recognitionRef.current = recognition;
-      
+
       recognition.start();
-      
+
       timeoutRef.current = setTimeout(() => {
         if (recognitionRef.current) {
           recognitionRef.current.stop();
         }
-      }, maxDuration);
-      
+      }, maxDuration) as unknown as number;
     } catch (err) {
       setError('Failed to start speech recognition');
       setIsRecording(false);
       console.error('Speech recognition error:', err);
     }
-  }, [isSupported, continuous, interimResults, language, minDuration, maxDuration, cleanupRecognition]);
+  }, [
+    isSupported,
+    SpeechRecognitionAPI,
+    continuous,
+    interimResults,
+    language,
+    minDuration,
+    maxDuration,
+    cleanupRecognition,
+  ]);
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
