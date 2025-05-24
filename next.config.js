@@ -9,6 +9,7 @@ const nextConfig = {
   experimental: {
     webVitalsAttribution: ['CLS', 'LCP', 'FID', 'INP'],
   },
+  output: 'standalone',
 };
 
 module.exports = withBundleAnalyzer(nextConfig);

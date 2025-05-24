@@ -82,6 +82,9 @@ The following secrets must be configured in GitHub repository settings:
 - `AZURE_CONTAINERAPPS_ENVIRONMENT`
 - `AZURE_RESOURCE_GROUP`
 - `AZURE_CONTAINERAPP_NAME`
+- `AZURE_CONTAINER_REGISTRY` - Name of your Azure Container Registry
+- `AZURE_CONTAINER_REGISTRY_USERNAME` - Username for ACR authentication
+- `AZURE_CONTAINER_REGISTRY_PASSWORD` - Password for ACR authentication
 - `TEAMS_WEBHOOK_URL` (optional)
 
 ## Best Practices
