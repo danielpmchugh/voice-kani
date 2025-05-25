@@ -16,8 +16,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ item, onAnswer }) => {
 
     const isCorrect =
       item.meanings.some(meaning => meaning.toLowerCase() === answer.toLowerCase()) ||
-      (item.readings &&
-        item.readings.some(reading => reading.toLowerCase() === answer.toLowerCase()));
+      (item.readings
+        ? item.readings.some(reading => reading.toLowerCase() === answer.toLowerCase())
+        : false);
 
     onAnswer(isCorrect);
     setAnswer('');
