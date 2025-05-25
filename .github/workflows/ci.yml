@@ -139,8 +139,7 @@ jobs:
             WANIKANI_API_VERSION=${{ secrets.WANIKANI_API_VERSION }}
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             NODE_ENV=production
-            # Added timestamp to force redeployment
-            DEPLOY_TIMESTAMP=$(date +%s)
+            DEPLOY_TIMESTAMP=${{ github.run_id }}
 
       - name: Get staging URL
         id: staging-url
