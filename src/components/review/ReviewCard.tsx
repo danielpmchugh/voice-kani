@@ -1,6 +1,7 @@
 import React from 'react';
 import { ReviewItem } from '@/types/wanikani';
 import Button from '@/components/common/Button';
+import VoiceInputButton from '@/components/common/VoiceInputButton';
 import { useReviewSessionStore } from '@/stores/reviewSessionStore';
 
 interface ReviewCardProps {
@@ -10,8 +11,10 @@ interface ReviewCardProps {
 
 const ReviewCard: React.FC<ReviewCardProps> = ({ item, onAnswer }) => {
   const [answer, setAnswer] = React.useState('');
-  const [isRecording, setIsRecording] = React.useState(false);
-  useReviewSessionStore();
+  const [isRecognizing, setIsRecognizing] = React.useState(false);
+  const { currentSession } = useReviewSessionStore();
+  
+  const voiceEnabled = currentSession?.settings?.voiceEnabled ?? true;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +29,12 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ item, onAnswer }) => {
     setAnswer('');
   };
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-
-    if (isRecording) {
-      setAnswer('Example voice input');
+  const handleTranscriptChange = (transcript: string) => {
+    if (transcript) {
+      setAnswer(transcript);
+      setIsRecognizing(true);
+    } else {
+      setIsRecognizing(false);
     }
   };
 
@@ -59,19 +63,24 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ item, onAnswer }) => {
         </div>
 
         <div className="flex space-x-2">
-          <Button
-            type="button"
-            variant={isRecording ? 'primary' : 'outline'}
-            onClick={toggleRecording}
-            className="flex-1"
-          >
-            {isRecording ? 'Stop Recording' : 'Start Voice Input'}
-          </Button>
+          {voiceEnabled && (
+            <VoiceInputButton
+              onTranscriptChange={handleTranscriptChange}
+              className="flex-1"
+              language="ja-JP"
+            />
+          )}
 
           <Button type="submit" variant="primary" className="flex-1" disabled={!answer.trim()}>
             Submit
           </Button>
         </div>
+        
+        {isRecognizing && (
+          <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+            Voice recognized. Press Submit to confirm or edit the text above.
+          </div>
+        )}
       </form>
     </div>
   );

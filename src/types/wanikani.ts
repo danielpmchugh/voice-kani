@@ -7,114 +7,29 @@ export interface WaniKaniUser {
 }
 
 /**
- * API response wrapper types
+ * Voice input method used for answering review questions
  */
-export interface WaniKaniCollection<T> {
-  object: 'collection';
-  url: string;
-  pages: {
-    next_url: string | null;
-    previous_url: string | null;
-    per_page: number;
-  };
-  total_count: number;
-  data_updated_at: string | null;
-  data: T[];
-}
-
-export interface WaniKaniResource<T> {
-  id: number;
-  object: string;
-  url: string;
-  data_updated_at: string;
-  data: T;
-}
+export type VoiceInputMethod = 'webSpeechAPI' | 'none';
 
 /**
- * API-specific data structures
+ * Voice input status for tracking recognition state
  */
-export interface AssignmentData {
-  available_at: string | null;
-  burned_at: string | null;
-  created_at: string;
-  hidden: boolean;
-  passed_at: string | null;
-  resurrected_at: string | null;
-  srs_stage: number;
-  started_at: string | null;
-  subject_id: number;
-  subject_type: 'radical' | 'kanji' | 'vocabulary' | 'kana_vocabulary';
-  unlocked_at: string | null;
-}
-
-export interface SubjectData {
-  auxiliary_meanings: Array<{
-    meaning: string;
-    type: 'whitelist' | 'blacklist';
-  }>;
-  characters: string | null;
-  created_at: string;
-  document_url: string;
-  hidden_at: string | null;
-  lesson_position: number;
-  level: number;
-  meaning_mnemonic: string;
-  meanings: Array<{
-    meaning: string;
-    primary: boolean;
-    accepted_answer: boolean;
-  }>;
-  slug: string;
-  spaced_repetition_system_id: number;
-}
-
-export interface ReviewData {
-  assignment_id: number;
-  created_at: string;
-  ending_srs_stage: number;
-  incorrect_meaning_answers: number;
-  incorrect_reading_answers: number;
-  spaced_repetition_system_id: number;
-  starting_srs_stage: number;
-  subject_id: number;
-}
+export type VoiceInputStatus = 'idle' | 'recording' | 'processing' | 'error' | 'success';
 
 /**
- * Pagination control interface
+ * Voice input configuration and settings
  */
-export interface PaginationOptions {
-  page_after_id?: number;
-  page_before_id?: number;
-}
-
-/**
- * Filter interfaces for different endpoints
- */
-export interface AssignmentFilters extends PaginationOptions {
-  available_after?: string;
-  available_before?: string;
-  burned?: boolean;
-  hidden?: boolean;
-  ids?: number[];
-  immediately_available_for_lessons?: boolean;
-  immediately_available_for_review?: boolean;
-  in_review?: boolean;
-  levels?: number[];
-  srs_stages?: number[];
-  started?: boolean;
-  subject_ids?: number[];
-  subject_types?: string[];
-  unlocked?: boolean;
-  updated_after?: string;
-}
-
-export interface SubjectFilters extends PaginationOptions {
-  ids?: number[];
-  types?: string[];
-  slugs?: string[];
-  levels?: number[];
-  hidden?: boolean;
-  updated_after?: string;
+export interface VoiceInputConfig {
+  /** The language code for speech recognition */
+  language: string;
+  /** Maximum recording duration in milliseconds */
+  maxDuration: number;
+  /** Minimum recording duration in milliseconds */
+  minDuration: number;
+  /** Whether to use continuous recognition */
+  continuous: boolean;
+  /** Whether to show interim results during recognition */
+  interimResults: boolean;
 }
 
 /**
@@ -150,6 +65,10 @@ export interface ReviewItem {
   auxiliaryMeanings?: string[];
   /** Memory aid for learning */
   mnemonic?: string;
+  /** Method used to input the answer (voice or text) */
+  inputMethod?: 'voice' | 'text';
+  /** Voice recognition confidence score (0-1) if voice input was used */
+  voiceConfidence?: number;
   
   /** @deprecated Use character instead */
   characters?: string;
@@ -187,6 +106,8 @@ export interface ReviewSession {
   settings?: {
     /** Voice input enabled */
     voiceEnabled?: boolean;
+    /** Voice input configuration */
+    voiceConfig?: VoiceInputConfig;
     /** Time limit per item in seconds */
     timeLimit?: number;
     /** Auto-advance to next item */
@@ -194,6 +115,17 @@ export interface ReviewSession {
   };
   /** Source of the review items */
   source: 'wanikani' | 'custom';
+  /** Voice input usage statistics */
+  voiceStats?: {
+    /** Number of answers submitted using voice input */
+    voiceAnswerCount: number;
+    /** Number of answers submitted using text input */
+    textAnswerCount: number;
+    /** Average voice recognition confidence */
+    averageConfidence: number;
+    /** Number of times voice recognition failed */
+    failureCount: number;
+  };
   
   /** @deprecated Use items.length instead */
   currentItemIndex: number;
