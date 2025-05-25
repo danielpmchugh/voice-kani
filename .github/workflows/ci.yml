@@ -129,7 +129,7 @@ jobs:
           tags: ${{ steps.slot-name.outputs.image_tag }}
 
       - name: Deploy to Azure Container Apps (Staging)
-        uses: azure/container-apps-deploy-action@v1
+        uses: azure/container-apps-deploy-action@v2
         with:
           containerAppName: ${{ env.AZURE_CONTAINERAPP_NAME }}
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
@@ -278,7 +278,7 @@ jobs:
           tags: ${{ steps.revision.outputs.image_tag }}
 
       - name: Deploy to Azure Container Apps (Production)
-        uses: azure/container-apps-deploy-action@v1
+        uses: azure/container-apps-deploy-action@v2
         with:
           containerAppName: ${{ env.AZURE_CONTAINERAPP_NAME }}
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
