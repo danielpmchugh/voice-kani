@@ -146,6 +146,31 @@ jobs:
         run: |
           STAGING_URL="https://${{ steps.slot-name.outputs.slot_name }}.${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}.azurecontainerapps.io"
           echo "staging_url=${STAGING_URL}" >> $GITHUB_OUTPUT
+      - name: Verify deployment accessibility
+        id: verify-deployment
+        run: |
+          echo "Waiting for deployment to be accessible..."
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+          HEALTH_URL="${{ steps.staging-url.outputs.staging_url }}/api/health"
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT+1))/$MAX_RETRIES: Checking $HEALTH_URL"
+            if curl -s -f -m 10 "$HEALTH_URL" > /dev/null; then
+              echo "✅ Deployment is accessible!"
+              echo "deployment_accessible=true" >> $GITHUB_OUTPUT
+              break
+            else
+              echo "❌ Deployment not accessible yet. Waiting..."
+              sleep 15
+              RETRY_COUNT=$((RETRY_COUNT+1))
+            fi
+          done
+          
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "⚠️ Warning: Deployment not accessible after $MAX_RETRIES attempts"
+            echo "deployment_accessible=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Comment PR with staging URL
         uses: actions/github-script@v6
