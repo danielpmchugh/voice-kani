@@ -284,7 +284,6 @@ jobs:
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
           imageToDeploy: ${{ steps.revision.outputs.image_tag }}
           containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          containerName: ${{ env.AZURE_CONTAINER_NAME }}
 
       - name: Notify Slack
         if: env.SLACK_WEBHOOK_URL != ''
