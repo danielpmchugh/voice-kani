@@ -135,7 +135,6 @@ jobs:
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
           imageToDeploy: ${{ steps.slot-name.outputs.image_tag }}
           containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          containerName: ${{ env.AZURE_CONTAINER_NAME }}
 
       - name: Get staging URL
         id: staging-url
