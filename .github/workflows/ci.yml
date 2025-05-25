@@ -131,10 +131,10 @@ jobs:
       - name: Deploy to Azure Container Apps (Staging)
         uses: azure/container-apps-deploy-action@v2
         with:
-          containerAppName: ${{ env.AZURE_CONTAINERAPP_NAME }}
-          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
+          containerAppName: voice-kani #${{ env.AZURE_CONTAINERAPP_NAME }}
+          resourceGroup: dev-voice-kani-rg #${{ env.AZURE_RESOURCE_GROUP }}
           imageToDeploy: ${{ steps.slot-name.outputs.image_tag }}
-          containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          containerAppEnvironment: managedEnvironment-devvoicekanirg-a747 #${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
 
       - name: Get staging URL
         id: staging-url
