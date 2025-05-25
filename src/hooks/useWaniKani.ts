@@ -1,78 +1,63 @@
 import { useState, useEffect } from 'react';
-import { fetchReviewItems, submitReviewResult } from '@/services/wanikani/api';
-import { ReviewItem, ReviewSession } from '@/types/wanikani';
+import { fetchReviewItems, submitReviewResult } from '../services/wanikani/api';
+import { ReviewItem } from '../types/wanikani';
+import { useReviewSessionStore } from '../stores/reviewSessionStore';
 
 export const useWaniKani = () => {
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
-  const [session, setSession] = useState<ReviewSession | null>(null);
+  const {
+    currentSession: session,
+    loading: sessionLoading,
+    error: sessionError,
+    startSession,
+    submitAnswer: submitSessionAnswer,
+    setError,
+  } = useReviewSessionStore();
+
+  const [loading, setLocalLoading] = useState<boolean>(false);
+  const [error, setLocalError] = useState<string | null>(null);
 
   const loadReviewItems = async () => {
-    setLoading(true);
-    setError(null);
+    setLocalLoading(true);
+    setLocalError(null);
 
     try {
       const data = await fetchReviewItems();
       setReviewItems(data.items || []);
     } catch (err) {
-      setError('Failed to load review items');
+      setLocalError('Failed to load review items');
       console.error(err);
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   };
 
-  const startSession = () => {
-    if (reviewItems.length === 0) {
-      setError('No review items available');
-      return null;
-    }
-
-    const newSession: ReviewSession = {
-      id: `session-${Date.now()}`,
-      items: reviewItems,
-      currentItemIndex: 0,
-      startedAt: new Date().toISOString(),
-      correctCount: 0,
-      incorrectCount: 0,
-    };
-
-    setSession(newSession);
-    return newSession;
+  const startReviewSession = async (userId = 'default-user') => {
+    return await startSession(userId, reviewItems);
   };
 
-  const submitAnswer = async (itemId: string, isCorrect: boolean) => {
+  const submitAnswer = async (
+    itemId: string,
+    isCorrect: boolean,
+    questionType: 'meaning' | 'reading' = 'meaning'
+  ) => {
     if (!session) return;
 
-    const updatedSession = { ...session };
-
-    if (isCorrect) {
-      updatedSession.correctCount += 1;
-    } else {
-      updatedSession.incorrectCount += 1;
-    }
-
-    updatedSession.currentItemIndex += 1;
-
-    if (updatedSession.currentItemIndex >= updatedSession.items.length) {
-      updatedSession.completedAt = new Date().toISOString();
-    }
-
-    setSession(updatedSession);
-
     try {
+      await submitSessionAnswer(itemId, isCorrect, questionType);
+
       await submitReviewResult(itemId, {
         review: {
-          incorrect_meaning_answers: isCorrect ? 0 : 1,
-          incorrect_reading_answers: isCorrect ? 0 : 1,
+          incorrect_meaning_answers: questionType === 'meaning' && !isCorrect ? 1 : 0,
+          incorrect_reading_answers: questionType === 'reading' && !isCorrect ? 1 : 0,
         },
       });
-    } catch (err) {
-      console.error('Error submitting review result:', err);
-    }
 
-    return updatedSession;
+      return session;
+    } catch (err) {
+      setError('Failed to submit answer');
+      console.error('Error submitting answer:', err);
+    }
   };
 
   useEffect(() => {
@@ -80,12 +65,12 @@ export const useWaniKani = () => {
   }, []);
 
   return {
-    loading,
-    error,
+    loading: loading || sessionLoading,
+    error: error || sessionError,
     reviewItems,
     session,
     loadReviewItems,
-    startSession,
+    startSession: startReviewSession,
     submitAnswer,
   };
 };
