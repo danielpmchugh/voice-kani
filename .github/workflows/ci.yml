@@ -129,13 +129,19 @@ jobs:
           tags: ${{ steps.slot-name.outputs.image_tag }}
 
       - name: Deploy to Azure Container Apps (Staging)
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          containerAppName: voice-kani #${{ env.AZURE_CONTAINERAPP_NAME }}
-          resourceGroup: dev-voice-kani-rg #${{ env.AZURE_RESOURCE_GROUP }}
-          imageToDeploy: ${{ steps.slot-name.outputs.image_tag }}
-          containerAppEnvironment: managedEnvironment-devvoicekanirg-a747 #${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          containerName: voice-kani
+        run: |
+          az containerapp update \
+            --name voice-kani \
+            --resource-group dev-voice-kani-rg \
+            --image ${{ steps.slot-name.outputs.image_tag }} \
+            --container-name voice-kani
+        env:
+          AZURE_RESOURCE_GROUP: dev-voice-kani-rg
+          AZURE_CONTAINERAPP_NAME: voice-kani
+          AZURE_CONTAINERAPPS_ENVIRONMENT: managedEnvironment-devvoicekanirg-a747
+          AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+          AZURE_CONTAINER_NAME: voice-kani
+          DOCKER_CONFIG: ${{ env.DOCKER_CONFIG }}
 
       - name: Get staging URL
         id: staging-url
@@ -278,13 +284,19 @@ jobs:
           tags: ${{ steps.revision.outputs.image_tag }}
 
       - name: Deploy to Azure Container Apps (Production)
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          containerAppName: ${{ env.AZURE_CONTAINERAPP_NAME }}
-          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
-          imageToDeploy: ${{ steps.revision.outputs.image_tag }}
-          containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          containerName: voice-kani
+        run: |
+          az containerapp update \
+            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ steps.revision.outputs.image_tag }} \
+            --container-name voice-kani
+        env:
+          AZURE_RESOURCE_GROUP: ${{ env.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINERAPP_NAME: ${{ env.AZURE_CONTAINERAPP_NAME }}
+          AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+          AZURE_CONTAINER_NAME: voice-kani
+          DOCKER_CONFIG: ${{ env.DOCKER_CONFIG }}
 
       - name: Notify Slack
         if: env.SLACK_WEBHOOK_URL != ''
