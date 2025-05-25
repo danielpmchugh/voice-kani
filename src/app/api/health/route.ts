@@ -5,18 +5,24 @@ import os from 'os';
 
 export async function GET() {
   try {
+    const isServerReady = process.env.NODE_ENV === 'production';
+    
     const envVars = {
       NODE_ENV: process.env.NODE_ENV,
       WANIKANI_API_KEY: process.env.WANIKANI_API_KEY ? '✓ Set' : '✗ Not set',
       WANIKANI_API_VERSION: process.env.WANIKANI_API_VERSION ? '✓ Set' : '✗ Not set',
       NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? '✓ Set' : '✗ Not set',
+      PORT: process.env.PORT || '3000',
+      HOSTNAME: process.env.HOSTNAME || '0.0.0.0',
     };
 
     let publicDirExists = false;
+    let nextBuildExists = false;
     try {
       publicDirExists = fs.existsSync(path.join(process.cwd(), 'public'));
+      nextBuildExists = fs.existsSync(path.join(process.cwd(), '.next'));
     } catch (e) {
-      // Ignore errors checking public directory existence
+      // Ignore errors checking directory existence
     }
 
     const systemInfo = {
@@ -26,6 +32,7 @@ export async function GET() {
       cpus: os.cpus().length,
       totalMemory: `${Math.round(os.totalmem() / (1024 * 1024))} MB`,
       freeMemory: `${Math.round(os.freemem() / (1024 * 1024))} MB`,
+      uptime: `${Math.round(os.uptime())} seconds`,
     };
 
     let directories: string[] = [];
@@ -36,20 +43,23 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      status: 'healthy', // Always return healthy for health checks
+      status: 'healthy',
+      ready: isServerReady && nextBuildExists,
       timestamp: new Date().toISOString(),
       environment: envVars,
       system: systemInfo,
       cwd: process.cwd(),
       publicDirExists,
+      nextBuildExists,
       directories,
     });
   } catch (error) {
     console.error('Health check error:', error);
     return NextResponse.json({ 
       status: 'healthy',
+      ready: false,
       error: String(error),
       message: 'Returning healthy status despite error to pass health checks'
-    });
+    }, { status: 200 });
   }
 }

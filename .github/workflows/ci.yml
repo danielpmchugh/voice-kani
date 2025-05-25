@@ -134,6 +134,43 @@ jobs:
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
           imageToDeploy: ${{ steps.slot-name.outputs.image_tag }}
           containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          containerAppTemplate: |
+            containers:
+            - name: main
+              image: ${{ steps.slot-name.outputs.image_tag }}
+              resources:
+                cpu: 0.5
+                memory: 1Gi
+              probes:
+              - type: startup
+                httpGet:
+                  path: /api/health
+                  port: 3000
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                timeoutSeconds: 10
+                failureThreshold: 60
+              - type: liveness
+                httpGet:
+                  path: /api/health
+                  port: 3000
+                periodSeconds: 30
+                timeoutSeconds: 10
+              - type: readiness
+                httpGet:
+                  path: /api/health
+                  port: 3000
+                periodSeconds: 10
+                timeoutSeconds: 5
+            scale:
+              minReplicas: 1
+              maxReplicas: 3
+            ingress:
+              external: true
+              targetPort: 3000
+              traffic:
+              - weight: 100
+                latestRevision: true
           environmentVariables: |
             WANIKANI_API_KEY=${{ secrets.WANIKANI_API_KEY }}
             WANIKANI_API_VERSION=${{ secrets.WANIKANI_API_VERSION }}

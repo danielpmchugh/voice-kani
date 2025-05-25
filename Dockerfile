@@ -29,5 +29,5 @@ COPY --from=builder /app/public ./public
 # Expose port
 EXPOSE 3000
 
-# Set the command to run the app directly
-CMD ["node", "server.js"]
+# Set the command to run the app with startup logging
+CMD ["sh", "-c", "echo 'Container starting...' && echo 'Node version:' $(node --version) && echo 'Starting Next.js server on port ${PORT:-3000}...' && node server.js"]
