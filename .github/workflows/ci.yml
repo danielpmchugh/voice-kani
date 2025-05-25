@@ -76,6 +76,9 @@ jobs:
     needs: [lint, test, build]
     runs-on: ubuntu-latest
     environment: staging
+    permissions:
+      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@v3
       
