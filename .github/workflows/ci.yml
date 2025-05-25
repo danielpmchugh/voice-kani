@@ -135,6 +135,7 @@ jobs:
           resourceGroup: dev-voice-kani-rg #${{ env.AZURE_RESOURCE_GROUP }}
           imageToDeploy: ${{ steps.slot-name.outputs.image_tag }}
           containerAppEnvironment: managedEnvironment-devvoicekanirg-a747 #${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          containerName: voice-kani
 
       - name: Get staging URL
         id: staging-url
@@ -283,6 +284,7 @@ jobs:
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
           imageToDeploy: ${{ steps.revision.outputs.image_tag }}
           containerAppEnvironment: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          containerName: voice-kani
 
       - name: Notify Slack
         if: env.SLACK_WEBHOOK_URL != ''
