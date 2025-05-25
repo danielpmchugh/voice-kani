@@ -16,6 +16,7 @@ export async function GET() {
     try {
       publicDirExists = fs.existsSync(path.join(process.cwd(), 'public'));
     } catch (e) {
+      // Ignore errors checking public directory existence
     }
 
     const systemInfo = {
@@ -31,6 +32,7 @@ export async function GET() {
     try {
       directories = fs.readdirSync(process.cwd());
     } catch (e) {
+      // Ignore errors reading directory contents
     }
 
     return NextResponse.json({
