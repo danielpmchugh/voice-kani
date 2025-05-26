@@ -82,73 +82,78 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v3
-      
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-          
       - name: Install dependencies
         run: npm ci
-        
       - name: Build application
         run: npm run build
-
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
-      
-      - name: Set staging slot name and image tag
-        id: slot-name
+      - name: Set PR app name and image tag
+        id: pr-app
         run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
           SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
-          SLOT_NAME="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
-          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/voice-kani:${SLOT_NAME}"
-          echo "slot_name=${SLOT_NAME}" >> $GITHUB_OUTPUT
-          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "Staging slot name: ${SLOT_NAME}"
-          echo "Image tag: ${IMAGE_TAG}"
-      
+          PR_APP_NAME="voice-kani-pr-$PR_NUMBER"
+          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/voice-kani:pr-$PR_NUMBER-$SHORT_SHA"
+          echo "pr_app_name=$PR_APP_NAME" >> $GITHUB_OUTPUT
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      
       - name: Login to Azure Container Registry
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
           username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
           password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
-      
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ${{ steps.slot-name.outputs.image_tag }}
-
-      - name: Deploy to Azure Container Apps (Staging)
+          tags: ${{ steps.pr-app.outputs.image_tag }}
+      - name: Deploy PR Container App (create or update)
         run: |
-          az containerapp update \
-            --name voice-kani \
-            --resource-group dev-voice-kani-rg \
-            --image ${{ steps.slot-name.outputs.image_tag }} \
-            --container-name voice-kani
-        env:
-          AZURE_RESOURCE_GROUP: dev-voice-kani-rg
-          AZURE_CONTAINERAPP_NAME: voice-kani
-          AZURE_CONTAINERAPPS_ENVIRONMENT: managedEnvironment-devvoicekanirg-a747
-          AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-          AZURE_CONTAINER_NAME: voice-kani
-          DOCKER_CONFIG: ${{ env.DOCKER_CONFIG }}
-
-      - name: Get staging URL
+          set -e
+          PR_APP_NAME=${{ steps.pr-app.outputs.pr_app_name }}
+          IMAGE_TAG=${{ steps.pr-app.outputs.image_tag }}
+          RG=${{ env.AZURE_RESOURCE_GROUP }}
+          ENV_ID=${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+          # Try to show the app, if not found, create it
+          if az containerapp show --name "$PR_APP_NAME" --resource-group "$RG" > /dev/null 2>&1; then
+            az containerapp update \
+              --name "$PR_APP_NAME" \
+              --resource-group "$RG" \
+              --image "$IMAGE_TAG" \
+              --container-name voice-kani \
+              --set configuration.ingress.targetPort=3000 \
+              --ingress external \
+              --min-replicas 1
+          else
+            az containerapp create \
+              --name "$PR_APP_NAME" \
+              --resource-group "$RG" \
+              --environment "$ENV_ID" \
+              --image "$IMAGE_TAG" \
+              --target-port 3000 \
+              --ingress external \
+              --min-replicas 1 \
+              --cpu 0.5 \
+              --memory 1Gi
+          fi
+      - name: Get PR staging URL
         id: staging-url
         run: |
-          STAGING_URL="https://${{ steps.slot-name.outputs.slot_name }}.${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}.azurecontainerapps.io"
-          echo "staging_url=${STAGING_URL}" >> $GITHUB_OUTPUT
-
+          PR_APP_NAME=${{ steps.pr-app.outputs.pr_app_name }}
+          RG=${{ env.AZURE_RESOURCE_GROUP }}
+          URL=$(az containerapp show --name "$PR_APP_NAME" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)
+          echo "staging_url=https://$URL" >> $GITHUB_OUTPUT
       - name: Comment PR with staging URL
         uses: actions/github-script@v6
         with:
@@ -159,7 +164,7 @@ jobs:
               repo: context.repo.repo,
               body: '🚀 **Staging deployment ready!**\n\n' +
                     '📍 **Staging URL:** ${{ steps.staging-url.outputs.staging_url }}\n' +
-                    '🏷️ **Slot Name:** `${{ steps.slot-name.outputs.slot_name }}`\n\n' +
+                    '🏷️ **PR App Name:** `${{ steps.pr-app.outputs.pr_app_name }}`\n\n' +
                     'Test your changes and provide feedback!'
             })
 
@@ -196,7 +201,7 @@ jobs:
                 "fields": [
                   {
                     "type": "mrkdwn",
-                    "text": "*Slot:*\n${{ steps.slot-name.outputs.slot_name }}"
+                    "text": "*PR App Name:*\n${{ steps.pr-app.outputs.pr_app_name }}"
                   },
                   {
                     "type": "mrkdwn",
@@ -365,14 +370,9 @@ jobs:
         uses: azure/login@v1
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
-
-      - name: Delete staging revision
+      - name: Delete PR Container App
         run: |
-          SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
-          REVISION_NAME="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
-          echo "Deleting revision: ${REVISION_NAME}"
-          
-          az containerapp revision deactivate \
-            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --revision "${REVISION_NAME}" || true
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_APP_NAME="voice-kani-pr-$PR_NUMBER"
+          RG=${{ env.AZURE_RESOURCE_GROUP }}
+          az containerapp delete --name "$PR_APP_NAME" --resource-group "$RG" --yes
