@@ -11,7 +11,7 @@ export const useWaniKani = () => {
     error: sessionError,
     startSession,
     submitAnswer: submitSessionAnswer,
-    setError
+    setError,
   } = useReviewSessionStore();
 
   const [loading, setLocalLoading] = useState<boolean>(false);
@@ -36,19 +36,23 @@ export const useWaniKani = () => {
     return await startSession(userId, reviewItems);
   };
 
-  const submitAnswer = async (itemId: string, isCorrect: boolean, questionType: 'meaning' | 'reading' = 'meaning') => {
+  const submitAnswer = async (
+    itemId: string,
+    isCorrect: boolean,
+    questionType: 'meaning' | 'reading' = 'meaning'
+  ) => {
     if (!session) return;
 
     try {
       await submitSessionAnswer(itemId, isCorrect, questionType);
-      
+
       await submitReviewResult(itemId, {
         review: {
           incorrect_meaning_answers: questionType === 'meaning' && !isCorrect ? 1 : 0,
           incorrect_reading_answers: questionType === 'reading' && !isCorrect ? 1 : 0,
         },
       });
-      
+
       return session;
     } catch (err) {
       setError('Failed to submit answer');

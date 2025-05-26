@@ -13,9 +13,9 @@ describe('ReviewItem interface', () => {
       meanings: ['water'],
       srsStage: 1,
       userSpecificSrsStage: 1,
-      subjectType: 'kanji'
+      subjectType: 'kanji',
     };
-    
+
     expect(item.id).toBe('item-1');
     expect(item.wanikaniId).toBe('wk-1234');
     expect(item.type).toBe('kanji');
@@ -23,7 +23,7 @@ describe('ReviewItem interface', () => {
     expect(item.question).toBe('What is the meaning of 水?');
     expect(item.expectedAnswer).toBe('water');
   });
-  
+
   test('should support optional fields', () => {
     const item: ReviewItem = {
       id: 'item-1',
@@ -44,9 +44,9 @@ describe('ReviewItem interface', () => {
       meanings: ['water'],
       srsStage: 1,
       userSpecificSrsStage: 1,
-      subjectType: 'kanji'
+      subjectType: 'kanji',
     };
-    
+
     expect(item.userAnswer).toBe('water');
     expect(item.result).toBe('correct');
     expect(item.startedAt).toBe('2023-01-01T10:00:00Z');
@@ -56,7 +56,7 @@ describe('ReviewItem interface', () => {
     expect(item.auxiliaryMeanings).toEqual(['liquid', 'fluid']);
     expect(item.mnemonic).toBe('Looks like a flowing river');
   });
-  
+
   test('should support backward compatibility with legacy fields', () => {
     const item: ReviewItem = {
       id: 'item-1',
@@ -72,9 +72,9 @@ describe('ReviewItem interface', () => {
       readings: ['みず', 'すい'],
       srsStage: 1,
       userSpecificSrsStage: 1,
-      subjectType: 'kanji'
+      subjectType: 'kanji',
     };
-    
+
     expect(item.characters).toBe('水'); // Deprecated but still supported
     expect(item.object).toBe('kanji'); // Deprecated but still supported
     expect(item.meanings).toEqual(['water']); // Deprecated but still supported
@@ -93,9 +93,9 @@ describe('ReviewSession interface', () => {
       source: 'wanikani',
       currentItemIndex: 0,
       correctCount: 0,
-      incorrectCount: 0
+      incorrectCount: 0,
     };
-    
+
     expect(session.id).toBe('session-1');
     expect(session.userId).toBe('user-1');
     expect(session.items).toEqual([]);
@@ -103,7 +103,7 @@ describe('ReviewSession interface', () => {
     expect(session.completed).toBe(false);
     expect(session.source).toBe('wanikani');
   });
-  
+
   test('should support optional fields', () => {
     const session: ReviewSession = {
       id: 'session-1',
@@ -116,24 +116,24 @@ describe('ReviewSession interface', () => {
       settings: {
         voiceEnabled: true,
         timeLimit: 30,
-        autoAdvance: true
+        autoAdvance: true,
       },
       source: 'wanikani',
       currentItemIndex: 10,
       correctCount: 8,
       incorrectCount: 2,
-      completedAt: '2023-01-01T10:30:00Z'
+      completedAt: '2023-01-01T10:30:00Z',
     };
-    
+
     expect(session.endedAt).toBe('2023-01-01T10:30:00Z');
     expect(session.score).toBe(85);
     expect(session.settings).toEqual({
       voiceEnabled: true,
       timeLimit: 30,
-      autoAdvance: true
+      autoAdvance: true,
     });
   });
-  
+
   test('should support backward compatibility with legacy fields', () => {
     const session: ReviewSession = {
       id: 'session-1',
@@ -145,15 +145,15 @@ describe('ReviewSession interface', () => {
       currentItemIndex: 10,
       correctCount: 8,
       incorrectCount: 2,
-      completedAt: '2023-01-01T10:30:00Z'
+      completedAt: '2023-01-01T10:30:00Z',
     };
-    
+
     expect(session.currentItemIndex).toBe(10); // Deprecated but still supported
     expect(session.correctCount).toBe(8); // Deprecated but still supported
     expect(session.incorrectCount).toBe(2); // Deprecated but still supported
     expect(session.completedAt).toBe('2023-01-01T10:30:00Z'); // Deprecated but still supported
   });
-  
+
   test('should handle multi-user functionality', () => {
     const user1Session: ReviewSession = {
       id: 'session-1',
@@ -164,9 +164,9 @@ describe('ReviewSession interface', () => {
       source: 'wanikani',
       currentItemIndex: 0,
       correctCount: 0,
-      incorrectCount: 0
+      incorrectCount: 0,
     };
-    
+
     const user2Session: ReviewSession = {
       id: 'session-2',
       userId: 'user-2',
@@ -176,9 +176,9 @@ describe('ReviewSession interface', () => {
       source: 'wanikani',
       currentItemIndex: 0,
       correctCount: 0,
-      incorrectCount: 0
+      incorrectCount: 0,
     };
-    
+
     expect(user1Session.userId).toBe('user-1');
     expect(user2Session.userId).toBe('user-2');
     expect(user1Session.userId).not.toBe(user2Session.userId);

@@ -69,7 +69,7 @@ export interface ReviewItem {
   inputMethod?: 'voice' | 'text';
   /** Voice recognition confidence score (0-1) if voice input was used */
   voiceConfidence?: number;
-  
+
   /** @deprecated Use character instead */
   characters?: string;
   /** @deprecated Use expectedAnswer instead */
@@ -126,7 +126,7 @@ export interface ReviewSession {
     /** Number of times voice recognition failed */
     failureCount: number;
   };
-  
+
   /** @deprecated Use items.length instead */
   currentItemIndex: number;
   /** @deprecated Calculate from items */

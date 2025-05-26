@@ -13,7 +13,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ item, onAnswer }) => {
   const [answer, setAnswer] = React.useState('');
   const [isRecognizing, setIsRecognizing] = React.useState(false);
   const { currentSession } = useReviewSessionStore();
-  
+
   const voiceEnabled = currentSession?.settings?.voiceEnabled ?? true;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -75,7 +75,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ item, onAnswer }) => {
             Submit
           </Button>
         </div>
-        
+
         {isRecognizing && (
           <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
             Voice recognized. Press Submit to confirm or edit the text above.

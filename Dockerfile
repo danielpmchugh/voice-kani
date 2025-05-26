@@ -21,14 +21,12 @@ WORKDIR /app
 ENV NODE_ENV production
 
 # Copy necessary files from builder
-# Create public directory if it doesn't exist
-RUN mkdir -p ./public
-# Copy .next files from builder
+RUN if [ -d /app/public ]; then mkdir -p ./public && cp -r /app/public/* ./public/; else mkdir -p ./public; fi
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
 # Expose port
-EXPOSE 3000
+EXPOSE 80
 
 # Set the command to run the app
 CMD ["node", "server.js"]
