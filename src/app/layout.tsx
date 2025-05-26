@@ -8,9 +8,22 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+  try {
+    return (
+      <html lang="en">
+        <body>{children}</body>
+      </html>
+    );
+  } catch (error) {
+    console.error('Error in root layout:', error);
+    return (
+      <html lang="en">
+        <body>
+          <div className="flex min-h-screen items-center justify-center">
+            <h1 className="text-2xl text-red-600">Application failed to load</h1>
+          </div>
+        </body>
+      </html>
+    );
+  }
 }
