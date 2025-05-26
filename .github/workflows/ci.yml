@@ -7,11 +7,11 @@ on:
     branches: [ main ]
 
 env:
-  AZURE_RESOURCE_GROUP: dev-voice-kani-rg #${{ secrets.AZURE_RESOURCE_GROUP }}
-  AZURE_CONTAINERAPP_NAME: voice-kani #${{ secrets.AZURE_CONTAINERAPP_NAME }}
-  AZURE_CONTAINERAPPS_ENVIRONMENT: managedEnvironment-devvoicekanirg-a747 #${{ secrets.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }} 
+  AZURE_CONTAINERAPP_NAME: ${{ secrets.AZURE_CONTAINERAPP_NAME }} 
+  AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ secrets.AZURE_CONTAINERAPPS_ENVIRONMENT }}
   AZURE_CONTAINER_REGISTRY: mardan #${{ secrets.AZURE_CONTAINER_REGISTRY }}
-  AZURE_CONTAINER_NAME: voice-kani
+  AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
 
 jobs:
   lint:
@@ -101,7 +101,7 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number }}
           SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
           REVISION_SUFFIX="pr-$PR_NUMBER-$SHORT_SHA"
-          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/voice-kani:$REVISION_SUFFIX"
+          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ secrets.AZURE_CONTAINERAPP_NAME }}:$REVISION_SUFFIX"
           echo "revision_suffix=$REVISION_SUFFIX" >> $GITHUB_OUTPUT
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
@@ -130,7 +130,7 @@ jobs:
             --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --image ${{ steps.pr-revision.outputs.image_tag }} \
-            --container-name voice-kani \
+            --container-name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
             --revision-suffix ${{ steps.pr-revision.outputs.revision_suffix }} \
             --set configuration.ingress.targetPort=3000
       - name: Get PR revision FQDN
@@ -254,7 +254,7 @@ jobs:
         id: revision
         run: |
           REVISION_SUFFIX="canary-$(date +%s)"
-          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/voice-kani:${REVISION_SUFFIX}"
+          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ secrets.AZURE_CONTAINERAPP_NAME }}:${REVISION_SUFFIX}"
           echo "revision_suffix=${REVISION_SUFFIX}" >> $GITHUB_OUTPUT
           echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           echo "Revision suffix: ${REVISION_SUFFIX}"
@@ -283,13 +283,13 @@ jobs:
             --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --image ${{ steps.revision.outputs.image_tag }} \
-            --container-name voice-kani
+            --container-name ${{ secrets.AZURE_CONTAINERAPP_NAME }}
         env:
           AZURE_RESOURCE_GROUP: ${{ env.AZURE_RESOURCE_GROUP }}
           AZURE_CONTAINERAPP_NAME: ${{ env.AZURE_CONTAINERAPP_NAME }}
           AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
           AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-          AZURE_CONTAINER_NAME: voice-kani
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
           DOCKER_CONFIG: ${{ env.DOCKER_CONFIG }}
 
       - name: Notify Slack
