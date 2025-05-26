@@ -10,7 +10,7 @@ jest.mock('@/hooks/useVoiceInput', () => ({
 
 describe('VoiceInputButton', () => {
   const mockOnTranscriptChange = jest.fn();
-  
+
   const defaultMockHook = {
     transcript: '',
     isRecording: false,
@@ -30,7 +30,7 @@ describe('VoiceInputButton', () => {
 
   it('renders correctly in idle state', () => {
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     expect(screen.getByText('Start Voice Input')).toBeInTheDocument();
     expect(screen.getByRole('button')).not.toHaveClass('animate-pulse');
   });
@@ -40,9 +40,9 @@ describe('VoiceInputButton', () => {
       ...defaultMockHook,
       isRecording: true,
     });
-    
+
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     expect(screen.getByText('Stop Recording')).toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveClass('animate-pulse');
   });
@@ -52,9 +52,9 @@ describe('VoiceInputButton', () => {
       ...defaultMockHook,
       isProcessing: true,
     });
-    
+
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     expect(screen.getByText('Processing...')).toBeInTheDocument();
     expect(screen.getByRole('button')).toBeDisabled();
   });
@@ -64,9 +64,9 @@ describe('VoiceInputButton', () => {
       ...defaultMockHook,
       error: 'Microphone access denied',
     });
-    
+
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     expect(screen.getByText('Try Again')).toBeInTheDocument();
     expect(screen.getByText('Microphone access denied')).toBeInTheDocument();
   });
@@ -76,18 +76,18 @@ describe('VoiceInputButton', () => {
       ...defaultMockHook,
       isSupported: false,
     });
-    
+
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     expect(screen.getByText('Voice Input Not Supported')).toBeInTheDocument();
     expect(screen.getByRole('button')).toBeDisabled();
   });
 
   it('starts recording when clicked in idle state', () => {
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     expect(defaultMockHook.startRecording).toHaveBeenCalled();
   });
 
@@ -96,11 +96,11 @@ describe('VoiceInputButton', () => {
       ...defaultMockHook,
       isRecording: true,
     });
-    
+
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     expect(defaultMockHook.stopRecording).toHaveBeenCalled();
   });
 
@@ -109,28 +109,30 @@ describe('VoiceInputButton', () => {
       ...defaultMockHook,
       transcript: 'こんにちは',
     };
-    
+
     (useVoiceInput as jest.Mock).mockReturnValue(hookWithTranscript);
-    
+
     const { rerender } = render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     expect(mockOnTranscriptChange).toHaveBeenCalledWith('こんにちは');
-    
+
     (useVoiceInput as jest.Mock).mockReturnValue({
       ...hookWithTranscript,
       transcript: 'さようなら',
     });
-    
+
     rerender(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} />);
-    
+
     expect(mockOnTranscriptChange).toHaveBeenCalledWith('さようなら');
   });
 
   it('passes language prop to useVoiceInput', () => {
     render(<VoiceInputButton onTranscriptChange={mockOnTranscriptChange} language="en-US" />);
-    
-    expect(useVoiceInput).toHaveBeenCalledWith(expect.objectContaining({
-      language: 'en-US',
-    }));
+
+    expect(useVoiceInput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: 'en-US',
+      })
+    );
   });
 });

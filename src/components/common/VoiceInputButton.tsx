@@ -60,9 +60,7 @@ const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
     return 'Start Voice Input';
   };
 
-  const animationClass = isRecording
-    ? 'animate-pulse transition-opacity duration-500'
-    : '';
+  const animationClass = isRecording ? 'animate-pulse transition-opacity duration-500' : '';
 
   return (
     <div className="relative">
@@ -90,11 +88,9 @@ const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
         </svg>
         {getButtonText()}
       </Button>
-      
+
       {/* Error message */}
-      {error && (
-        <div className="text-red-500 text-sm mt-1">{error}</div>
-      )}
+      {error && <div className="text-red-500 text-sm mt-1">{error}</div>}
     </div>
   );
 };
