@@ -95,14 +95,14 @@ jobs:
         uses: azure/login@v1
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
-      - name: Set PR app name and image tag
-        id: pr-app
+      - name: Set PR revision suffix and image tag
+        id: pr-revision
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
-          PR_APP_NAME="voice-kani-pr-$PR_NUMBER"
-          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/voice-kani:pr-$PR_NUMBER-$SHORT_SHA"
-          echo "pr_app_name=$PR_APP_NAME" >> $GITHUB_OUTPUT
+          REVISION_SUFFIX="pr-$PR_NUMBER-$SHORT_SHA"
+          IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/voice-kani:$REVISION_SUFFIX"
+          echo "revision_suffix=$REVISION_SUFFIX" >> $GITHUB_OUTPUT
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -117,43 +117,32 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.pr-app.outputs.image_tag }}
-      - name: Deploy PR Container App (create or update)
+          tags: ${{ steps.pr-revision.outputs.image_tag }}
+      - name: Ensure revisions mode is multiple
         run: |
-          set -e
-          PR_APP_NAME=${{ steps.pr-app.outputs.pr_app_name }}
-          IMAGE_TAG=${{ steps.pr-app.outputs.image_tag }}
-          RG=${{ env.AZURE_RESOURCE_GROUP }}
-          ENV_ID=${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          # Try to show the app, if not found, create it
-          if az containerapp show --name "$PR_APP_NAME" --resource-group "$RG" > /dev/null 2>&1; then
-            az containerapp update \
-              --name "$PR_APP_NAME" \
-              --resource-group "$RG" \
-              --image "$IMAGE_TAG" \
-              --container-name voice-kani \
-              --set configuration.ingress.targetPort=3000 \
-              --ingress external \
-              --min-replicas 1
-          else
-            az containerapp create \
-              --name "$PR_APP_NAME" \
-              --resource-group "$RG" \
-              --environment "$ENV_ID" \
-              --image "$IMAGE_TAG" \
-              --target-port 3000 \
-              --ingress external \
-              --min-replicas 1 \
-              --cpu 0.5 \
-              --memory 1Gi
-          fi
-      - name: Get PR staging URL
-        id: staging-url
+          az containerapp update \
+            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --revisions-mode multiple
+      - name: Deploy PR revision
         run: |
-          PR_APP_NAME=${{ steps.pr-app.outputs.pr_app_name }}
-          RG=${{ env.AZURE_RESOURCE_GROUP }}
-          URL=$(az containerapp show --name "$PR_APP_NAME" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)
-          echo "staging_url=https://$URL" >> $GITHUB_OUTPUT
+          az containerapp update \
+            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ steps.pr-revision.outputs.image_tag }} \
+            --container-name voice-kani \
+            --revision-suffix ${{ steps.pr-revision.outputs.revision_suffix }} \
+            --set configuration.ingress.targetPort=3000
+      - name: Get PR revision FQDN
+        id: pr-fqdn
+        run: |
+          REVISION_NAME="${{ env.AZURE_CONTAINERAPP_NAME }}--${{ steps.pr-revision.outputs.revision_suffix }}"
+          FQDN=$(az containerapp revision show \
+            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --revision $REVISION_NAME \
+            --query properties.fqdn -o tsv)
+          echo "fqdn=https://$FQDN" >> $GITHUB_OUTPUT
       - name: Comment PR with staging URL
         uses: actions/github-script@v6
         with:
@@ -163,8 +152,8 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: '🚀 **Staging deployment ready!**\n\n' +
-                    '📍 **Staging URL:** ${{ steps.staging-url.outputs.staging_url }}\n' +
-                    '🏷️ **PR App Name:** `${{ steps.pr-app.outputs.pr_app_name }}`\n\n' +
+                    '📍 **Staging URL:** ${{ steps.pr-fqdn.outputs.fqdn }}\n' +
+                    '🏷️ **Revision Suffix:** `${{ steps.pr-revision.outputs.revision_suffix }}`\n\n' +
                     'Test your changes and provide feedback!'
             })
 
@@ -201,11 +190,11 @@ jobs:
                 "fields": [
                   {
                     "type": "mrkdwn",
-                    "text": "*PR App Name:*\n${{ steps.pr-app.outputs.pr_app_name }}"
+                    "text": "*Revision Suffix:*\n${{ steps.pr-revision.outputs.revision_suffix }}"
                   },
                   {
                     "type": "mrkdwn",
-                    "text": "*URL:*\n${{ steps.staging-url.outputs.staging_url }}"
+                    "text": "*Commit:*\n${{ github.sha }}"
                   }
                 ]
               },
@@ -219,7 +208,7 @@ jobs:
                       "text": "View Staging",
                       "emoji": true
                     },
-                    "url": "${{ steps.staging-url.outputs.staging_url }}"
+                    "url": "${{ steps.pr-fqdn.outputs.fqdn }}"
                   },
                   {
                     "type": "button",
@@ -370,9 +359,13 @@ jobs:
         uses: azure/login@v1
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
-      - name: Delete PR Container App
+      - name: Deactivate PR revision
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          PR_APP_NAME="voice-kani-pr-$PR_NUMBER"
-          RG=${{ env.AZURE_RESOURCE_GROUP }}
-          az containerapp delete --name "$PR_APP_NAME" --resource-group "$RG" --yes
+          SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
+          REVISION_SUFFIX="pr-$PR_NUMBER-$SHORT_SHA"
+          REVISION_NAME="${{ env.AZURE_CONTAINERAPP_NAME }}--$REVISION_SUFFIX"
+          az containerapp revision deactivate \
+            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --revision "$REVISION_NAME" || true
