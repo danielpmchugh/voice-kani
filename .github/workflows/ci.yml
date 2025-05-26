@@ -283,14 +283,16 @@ jobs:
             --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --image ${{ steps.revision.outputs.image_tag }} \
-            --container-name ${{ secrets.AZURE_CONTAINERAPP_NAME }}
-        env:
-          AZURE_RESOURCE_GROUP: ${{ env.AZURE_RESOURCE_GROUP }}
-          AZURE_CONTAINERAPP_NAME: ${{ env.AZURE_CONTAINERAPP_NAME }}
-          AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
-          DOCKER_CONFIG: ${{ env.DOCKER_CONFIG }}
+            --container-name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --set configuration.ingress.targetPort=3000
+      - name: Get Production FQDN
+        id: prod-fqdn
+        run: |
+          FQDN=$(az containerapp show \
+            --name ${{ env.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "fqdn=https://$FQDN" >> $GITHUB_OUTPUT
 
       - name: Notify Slack
         if: env.SLACK_WEBHOOK_URL != ''
@@ -343,7 +345,7 @@ jobs:
                       "text": "View Production",
                       "emoji": true
                     },
-                    "url": "https://${{ env.AZURE_CONTAINERAPP_NAME }}.${{ env.AZURE_CONTAINERAPPS_ENVIRONMENT }}.azurecontainerapps.io"
+                    "url": "${{ steps.prod-fqdn.outputs.fqdn }}"
                   }
                 ]
               }
